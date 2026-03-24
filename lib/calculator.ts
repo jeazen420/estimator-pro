@@ -8,7 +8,6 @@ export function calculateProject(project: Project): ProjectTotals {
     const grossPrice = netPrice + vatAmount
     return { ...item, directCost, netPrice, vatAmount, grossPrice }
   })
-
   return {
     totalNet: items.reduce((s, i) => s + i.netPrice, 0),
     totalVat: items.reduce((s, i) => s + i.vatAmount, 0),
@@ -18,15 +17,4 @@ export function calculateProject(project: Project): ProjectTotals {
 }
 
 export const formatHUF = (n: number) =>
-  new Intl.NumberFormat('hu-HU', {
-    style: 'currency',
-    currency: 'HUF',
-    maximumFractionDigits: 0,
-  }).format(n)
-
-export const formatEUR = (n: number) =>
-  new Intl.NumberFormat('hu-HU', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 2,
-  }).format(n)
+  new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'HUF', maximumFractionDigits: 0 }).format(n)

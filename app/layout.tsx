@@ -5,11 +5,7 @@ export const metadata: Metadata = {
   description: "Kivitelezői árajánlat-kezelő",
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="hu">
       <body style={{ margin: 0, padding: 0, background: "#09090b" }}>
