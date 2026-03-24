@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     } = await req.json()
 
     const buffer = await renderToBuffer(
-      React.createElement(EstimatorPDF, { project, contractor, invoiceNumber })
+      React.createElement(EstimatorPDF, { project, contractor, invoiceNumber }) as any
     )
 
     return new NextResponse(buffer, {
