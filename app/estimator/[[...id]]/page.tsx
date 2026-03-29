@@ -52,7 +52,7 @@ function emptyProject(): Project {
 // ── PDF Generator (jsPDF via CDN) ─────────────────────────────────
 async function generatePDF(project: Project, items: Item[], markup: number, contractorName: string) {
   // @ts-ignore
-  const { jsPDF } = await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js")
+  const { jsPDF } = await import("jspdf")
   const doc = new jsPDF()
   const totals = items.reduce((a, it) => {
     const net = (it.matPrice + it.laborPrice) * it.qty * (1 + markup / 100)
