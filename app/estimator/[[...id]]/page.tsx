@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase, saveProject, getCurrentContractor } from "@/lib/supabase"
+import { supabase, saveProject } from "@/lib/supabase"
 import { Project, LineItem } from "@/types"
 
 const CATALOG = [
@@ -96,13 +96,13 @@ export default function EstimatorPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const contractor = await getCurrentContractor()
-      if (!contractor) { alert("Nem vagy bejelentkezve!"); return }
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { alert("Nem vagy bejelentkezve!"); return }
       const proj: Omit<Project, 'id' | 'createdAt'> = {
         ...project, markupPct: markup,
         items: items.map(it => ({ id: it.id, category: it.category, name: it.name, unit: it.unit, quantity: it.qty, matPrice: it.matPrice, laborPrice: it.laborPrice }))
       }
-      await saveProject(proj, contractor.id)
+      await saveProject(proj, session.user.id)
       alert("Projekt mentve!")
       router.push("/dashboard")
     } catch (e) { alert("Hiba a mentésnél!") }
