@@ -33,16 +33,27 @@ export default function EstimatorPage() {
     async function load() {
       const { data, error } = await supabase
         .from("projects")
-        .select("*, client:clients(*), items:line_items(* order by sort_order)")
-        .eq("id", projectId).single()
+        .select("*, client:clients(*), items:line_items(*)")
+        .eq("id", projectId)
+        .single()
       if (error || !data) { setNotFound(true); setLoading(false); return }
+      const row = data as any
       setProject({
-        id: data.id, name: data.name, address: data.address ?? "",
-        markupPct: Number(data.markup_pct), vatPct: Number(data.vat_pct),
-        currency: data.currency, validUntil: data.valid_until ?? "",
-        status: data.status, notes: data.notes ?? undefined, createdAt: data.created_at,
-        client: { id: data.client?.id ?? "", name: data.client?.name ?? "", address: data.client?.address ?? "", email: data.client?.email ?? "" },
-        items: (data.items ?? []).map((li: any) => ({ id: li.id, category: li.category, name: li.name, unit: li.unit, quantity: Number(li.quantity), matPrice: Number(li.mat_price), laborPrice: Number(li.labor_price) })),
+        id: row.id, name: row.name, address: row.address ?? "",
+        markupPct: Number(row.markup_pct), vatPct: Number(row.vat_pct),
+        currency: row.currency, validUntil: row.valid_until ?? "",
+        status: row.status, notes: row.notes ?? undefined, createdAt: row.created_at,
+        client: {
+          id: row.client?.id ?? "", name: row.client?.name ?? "",
+          address: row.client?.address ?? "", email: row.client?.email ?? "",
+          phone: row.client?.phone ?? undefined,
+          taxNumber: row.client?.tax_number ?? undefined,
+        },
+        items: (row.items ?? []).map((li: any) => ({
+          id: li.id, category: li.category, name: li.name, unit: li.unit,
+          quantity: Number(li.quantity), matPrice: Number(li.mat_price),
+          laborPrice: Number(li.labor_price),
+        })),
       })
       setLoading(false)
     }
