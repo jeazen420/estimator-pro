@@ -22,17 +22,26 @@ function LoginForm() {
     setError(null); setSuccess(null); setLoading(true)
     try {
       if (mode === "login") {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+        const { data, error: err } = await supabase.auth.signInWithPassword({ email, password })
         if (err) throw err
-        router.push(nextPath)
+        if (data.session) {
+          // Force a hard navigation to ensure middleware picks up the session
+          window.location.href = nextPath
+        }
       } else {
         const { data, error: err } = await supabase.auth.signUp({
           email, password,
-          options: { data: { full_name: name }, emailRedirectTo: `${location.origin}/auth/callback` },
+          options: {
+            data: { full_name: name },
+            emailRedirectTo: `${location.origin}/auth/callback`,
+          },
         })
         if (err) throw err
-        if (data.session) router.push(nextPath)
-        else setSuccess("Megerősítő e-mail elküldve! Kérjük, ellenőrizd a postaládádat.")
+        if (data.session) {
+          window.location.href = nextPath
+        } else {
+          setSuccess("Megerősítő e-mail elküldve! Kérjük, ellenőrizd a postaládádat.")
+        }
       }
     } catch (err: any) {
       const MSGS: Record<string, string> = {
@@ -102,7 +111,7 @@ function LoginForm() {
           </div>
           {error && <div style={S.errorBox}>{error}</div>}
           {success && <div style={S.successBox}>{success}</div>}
-          <button type="submit" disabled={loading} style={S.btn}>
+          <button type="submit" disabled={loading} style={{ ...S.btn, ...(loading ? { opacity: 0.6, cursor: "not-allowed" } : {}) }}>
             {loading ? "Folyamatban…" : mode === "login" ? "Bejelentkezés" : "Fiók létrehozása"}
           </button>
         </form>
