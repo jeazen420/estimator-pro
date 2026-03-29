@@ -3,7 +3,15 @@ import Stripe from 'stripe'
 import { calculateProject } from '@/lib/calculator'
 import { Project } from '@/types'
 
+<<<<<<< HEAD
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20', typescript: true })
+=======
+// ── Stripe client (singleton pattern safe in serverless) ──────────────────────
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-06-20',
+  typescript: true,
+})
+>>>>>>> fc5d00013d0fd9117aa9539f710b2dd33b33033a
 
 async function upsertCustomer(client: Project['client']): Promise<string> {
   if (client.stripeCustomerId) {
