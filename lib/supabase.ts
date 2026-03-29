@@ -1,10 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 import { Project, LineItem, Contractor } from '../types'
 
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+export const supabase = typeof window !== 'undefined'
+  ? createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
+    )
+  : createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://placeholder.supabase.co',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
+    )
 
 export async function getCurrentContractor(): Promise<(Contractor & { id: string }) | null> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -22,7 +34,7 @@ export async function getProjects() {
 export async function getProject(projectId: string) {
   const { data, error } = await supabase
     .from('projects')
-    .select('*, client:clients(*), items:line_items(* order by sort_order)')
+    .select('*, client:clients(*), items:line_items(*)')
     .eq('id', projectId)
     .single()
   if (error) throw error
