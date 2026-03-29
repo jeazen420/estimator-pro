@@ -50,8 +50,21 @@ function emptyProject(): Project {
 }
 
 // ── PDF Generator (jsPDF via CDN) ─────────────────────────────────
+// Helper: replace Hungarian chars for PDF
+function huStr(s: string) {
+  return (s || "")
+    .replace(/á/g, "a").replace(/Á/g, "A")
+    .replace(/é/g, "e").replace(/É/g, "E")
+    .replace(/í/g, "i").replace(/Í/g, "I")
+    .replace(/ó/g, "o").replace(/Ó/g, "O")
+    .replace(/ö/g, "o").replace(/Ö/g, "O")
+    .replace(/ő/g, "o").replace(/Ő/g, "O")
+    .replace(/ú/g, "u").replace(/Ú/g, "U")
+    .replace(/ü/g, "u").replace(/Ü/g, "U")
+    .replace(/ű/g, "u").replace(/Ű/g, "U")
+}
+
 async function generatePDF(project: Project, items: Item[], markup: number, contractorName: string) {
-  // @ts-ignore
   const { jsPDF } = await import("jspdf")
   const doc = new jsPDF()
   const totals = items.reduce((a, it) => {
@@ -60,72 +73,76 @@ async function generatePDF(project: Project, items: Item[], markup: number, cont
   }, { net: 0, vat: 0, gross: 0 })
 
   // Header
-  doc.setFontSize(20); doc.setFont("helvetica", "bold")
-  doc.text("ARAJANLAT", 105, 20, { align: "center" })
-  doc.setFontSize(10); doc.setFont("helvetica", "normal")
-  doc.text(`Kelt: ${new Date().toLocaleDateString("hu-HU")}`, 105, 28, { align: "center" })
+  doc.setFontSize(22); doc.setFont("helvetica", "bold")
+  doc.text("ARAJANLAT", 105, 22, { align: "center" })
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 100, 100)
+  doc.text(`Kelt: ${new Date().toLocaleDateString("hu-HU")}`, 105, 30, { align: "center" })
+  doc.setTextColor(0, 0, 0)
+  doc.setDrawColor(251, 191, 36); doc.setLineWidth(1); doc.line(14, 34, 196, 34)
 
   // Parties
+  doc.setFontSize(8); doc.setTextColor(150, 150, 150)
+  doc.text("VALLALKOZO", 14, 44)
+  doc.text("MEGRENDELO", 110, 44)
+  doc.setTextColor(0, 0, 0)
   doc.setFontSize(11); doc.setFont("helvetica", "bold")
-  doc.text("Vallalkozo:", 14, 42)
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10)
-  doc.text(contractorName, 14, 50)
-
-  doc.setFontSize(11); doc.setFont("helvetica", "bold")
-  doc.text("Megrendelo:", 110, 42)
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10)
-  doc.text(project.client.name || "—", 110, 50)
-  doc.text(project.client.address || "—", 110, 56)
-
-  // Project info
-  doc.setFontSize(11); doc.setFont("helvetica", "bold")
-  doc.text(`Projekt: ${project.name}`, 14, 68)
-  doc.text(`Helyszin: ${project.address || "—"}`, 14, 75)
-
-  // Table header
-  let y = 88
-  doc.setFillColor(30, 30, 30); doc.rect(14, y - 6, 182, 8, "F")
-  doc.setTextColor(255, 255, 255); doc.setFontSize(9); doc.setFont("helvetica", "bold")
-  doc.text("Tetel megnevezese", 16, y)
-  doc.text("Egys.", 120, y)
-  doc.text("Menny.", 138, y)
-  doc.text("Netto", 158, y)
-  doc.text("Brutto", 178, y)
+  doc.text(huStr(contractorName), 14, 52)
+  doc.text(huStr(project.client.name) || "—", 110, 52)
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80, 80, 80)
+  doc.text(huStr(project.client.address) || "—", 110, 59)
+  doc.text(huStr(project.client.email) || "", 110, 65)
   doc.setTextColor(0, 0, 0)
 
-  // Table rows
+  // Project info box
+  doc.setFillColor(245, 245, 245); doc.rect(14, 72, 182, 16, "F")
+  doc.setFontSize(10); doc.setFont("helvetica", "bold")
+  doc.text(`Projekt: ${huStr(project.name)}`, 18, 80)
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80, 80, 80)
+  doc.text(`Helyszin: ${huStr(project.address) || "—"}`, 18, 86)
+  doc.setTextColor(0, 0, 0)
+
+  // Table header
+  let y = 100
+  doc.setFillColor(24, 24, 27); doc.rect(14, y - 6, 182, 9, "F")
+  doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont("helvetica", "bold")
+  doc.text("TETEL", 16, y)
+  doc.text("EGYS.", 118, y)
+  doc.text("MENNY.", 136, y)
+  doc.text("NETTO", 158, y, { align: "right" })
+  doc.text("BRUTTO", 193, y, { align: "right" })
+  doc.setTextColor(0, 0, 0)
+
   items.forEach((it, i) => {
     y += 10
-    if (i % 2 === 1) { doc.setFillColor(245, 245, 245); doc.rect(14, y - 6, 182, 9, "F") }
+    if (y > 260) { doc.addPage(); y = 20 }
+    if (i % 2 === 0) { doc.setFillColor(250, 250, 250); doc.rect(14, y - 6, 182, 9, "F") }
     doc.setFont("helvetica", "normal"); doc.setFontSize(9)
     const net = (it.matPrice + it.laborPrice) * it.qty * (1 + markup / 100)
     const gross = net * (1 + VAT)
-    doc.text(it.name.slice(0, 35), 16, y)
-    doc.text(it.unit, 120, y)
-    doc.text(String(it.qty), 138, y)
-    doc.text(fmt(net), 152, y, { align: "right" })
-    doc.text(fmt(gross), 190, y, { align: "right" })
-    if (y > 260) { doc.addPage(); y = 20 }
+    doc.text(huStr(it.name).slice(0, 38), 16, y)
+    doc.text(it.unit, 118, y)
+    doc.text(String(it.qty), 136, y)
+    doc.text(fmt(net), 158, y, { align: "right" })
+    doc.text(fmt(gross), 193, y, { align: "right" })
   })
 
-  // Totals
-  y += 14
+  y += 12
   doc.setDrawColor(200, 200, 200); doc.line(14, y - 4, 196, y - 4)
-  doc.setFontSize(10); doc.setFont("helvetica", "normal")
-  doc.text("Netto osszesen:", 130, y); doc.text(fmt(totals.net), 190, y, { align: "right" })
+  doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(80, 80, 80)
+  doc.text("Netto osszesen:", 130, y); doc.text(fmt(totals.net), 193, y, { align: "right" })
   y += 7
-  doc.text("AFA (27%):", 130, y); doc.text(fmt(totals.vat), 190, y, { align: "right" })
-  y += 7
-  doc.setFont("helvetica", "bold"); doc.setFontSize(12)
-  doc.setFillColor(251, 191, 36); doc.rect(125, y - 7, 71, 10, "F")
-  doc.text("FIZETENDO:", 130, y); doc.text(fmt(totals.gross), 190, y, { align: "right" })
+  doc.text("AFA (27%):", 130, y); doc.text(fmt(totals.vat), 193, y, { align: "right" })
+  y += 8
+  doc.setFillColor(251, 191, 36); doc.rect(126, y - 7, 70, 10, "F")
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(28, 25, 23)
+  doc.text("FIZETENDO:", 130, y); doc.text(fmt(totals.gross), 193, y, { align: "right" })
+  doc.setTextColor(0, 0, 0)
 
-  // Footer
-  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(120, 120, 120)
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(150, 150, 150)
   doc.text(`Ervenyes: ${project.validUntil}`, 14, 285)
-  doc.text("Keszult: Estimator Pro", 105, 285, { align: "center" })
+  doc.text("Estimator Pro", 105, 285, { align: "center" })
 
-  doc.save(`arajanlat-${project.name.replace(/\s/g, "-")}.pdf`)
+  doc.save(`arajanlat-${huStr(project.name).replace(/\s/g, "-")}.pdf`)
 }
 
 // ── Main Component ────────────────────────────────────────────────

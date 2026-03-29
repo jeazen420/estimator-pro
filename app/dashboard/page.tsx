@@ -14,12 +14,22 @@ interface ProjectRow {
 
 const fmt = (n: number) => new Intl.NumberFormat("hu-HU", { style: "currency", currency: "HUF", maximumFractionDigits: 0 }).format(n ?? 0)
 const fmtD = (s: string) => new Date(s).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" })
+
 const STATUS: Record<string, { l: string; c: string; bg: string }> = {
-  accepted: { l: "Elfogadva", c: "#34d399", bg: "#064e3b" },
-  sent: { l: "Elküldve", c: "#60a5fa", bg: "#1e3a5f" },
-  draft: { l: "Vázlat", c: "#a1a1aa", bg: "#27272a" },
-  rejected: { l: "Törölt", c: "#f87171", bg: "#450a0a" },
+  draft:    { l: "Vázlat",     c: "#a1a1aa", bg: "#27272a" },
+  sent:     { l: "Elküldve",   c: "#60a5fa", bg: "#1e3a5f" },
+  accepted: { l: "Elfogadva",  c: "#34d399", bg: "#064e3b" },
+  rejected: { l: "Törölt",     c: "#f87171", bg: "#450a0a" },
 }
+
+const STATUS_NEXT: Record<string, string> = {
+  draft: "sent", sent: "accepted", accepted: "draft",
+}
+
+const STATUS_NEXT_LABEL: Record<string, string> = {
+  draft: "→ Elküldve", sent: "→ Elfogadva", accepted: "→ Visszaállít",
+}
+
 const PALETTE = ["#7c3aed","#0f766e","#b45309","#0369a1","#be185d","#15803d","#c2410c","#1d4ed8"]
 function strColor(s: string) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) & 0xffff; return PALETTE[h % PALETTE.length] }
 
@@ -38,11 +48,8 @@ export default function Dashboard() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.replace("/login"); return }
-
-      const { data: contractor } = await supabase
-        .from("contractors").select("name").eq("user_id", session.user.id).single()
+      const { data: contractor } = await supabase.from("contractors").select("name").eq("user_id", session.user.id).single()
       if (contractor) setContractorName(contractor.name)
-
       const p = await getProjects()
       setProjects((p ?? []) as ProjectRow[])
       setLoading(false)
@@ -74,11 +81,18 @@ export default function Dashboard() {
   }), [projects])
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Biztosan törölni szeretnéd ezt a projektet?")) return
+    if (!confirm("Biztosan törölni szeretnéd?")) return
     setDeletingId(id)
     await supabase.from("projects").update({ status: "rejected" }).eq("id", id)
     setProjects(prev => prev.map(p => p.project_id === id ? { ...p, status: "rejected" } : p))
     setDeletingId(null)
+  }
+
+  const handleStatusChange = async (id: string, currentStatus: string) => {
+    const nextStatus = STATUS_NEXT[currentStatus]
+    if (!nextStatus) return
+    await supabase.from("projects").update({ status: nextStatus }).eq("id", id)
+    setProjects(prev => prev.map(p => p.project_id === id ? { ...p, status: nextStatus } : p))
   }
 
   const handleLogout = async () => {
@@ -92,8 +106,8 @@ export default function Dashboard() {
   }
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#09090b", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
-      <div style={{ color: "#71717a", fontSize: 13 }}>Betöltés…</div>
+    <div style={{ minHeight: "100vh", background: "#09090b", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", color: "#71717a" }}>
+      Betöltés…
     </div>
   )
 
@@ -114,6 +128,9 @@ export default function Dashboard() {
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={() => router.push("/estimator")} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 15px", borderRadius: 10, background: "#fbbf24", color: "#1c1917", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
               + Új árajánlat
+            </button>
+            <button onClick={() => router.push("/profile")} style={{ padding: "8px 14px", borderRadius: 10, background: "#27272a", color: "#a1a1aa", fontSize: 13, border: "1px solid #3f3f46", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              Profil
             </button>
             <button onClick={handleLogout} style={{ padding: "8px 14px", borderRadius: 10, background: "#27272a", color: "#a1a1aa", fontSize: 13, border: "1px solid #3f3f46", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
               Kilépés
@@ -171,7 +188,8 @@ export default function Dashboard() {
               const st = STATUS[p.status] ?? STATUS.draft
               const av = strColor(p.client_name || "?")
               return (
-                <div key={p.project_id} style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 14, padding: 18, position: "relative", overflow: "hidden" }}>
+                <div key={p.project_id} style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 14, padding: 18 }}>
+                  {/* Top */}
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <div style={{ width: 38, height: 38, borderRadius: 10, background: av, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{(p.client_name || "?").slice(0,1).toUpperCase()}</div>
@@ -180,9 +198,18 @@ export default function Dashboard() {
                         <div style={{ fontSize: 11, color: "#71717a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 180 }}>{p.name}</div>
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 9px", borderRadius: 999, color: st.c, background: st.bg, flexShrink: 0 }}>{st.l}</span>
+                    <button
+                      onClick={() => handleStatusChange(p.project_id, p.status)}
+                      style={{ fontSize: 11, fontWeight: 500, padding: "3px 9px", borderRadius: 999, color: st.c, background: st.bg, border: "none", cursor: "pointer", flexShrink: 0, fontFamily: "'DM Sans', sans-serif" }}
+                      title={STATUS_NEXT_LABEL[p.status]}
+                    >
+                      {st.l}
+                    </button>
                   </div>
+
                   <div style={{ height: 1, background: "#27272a", marginBottom: 14 }}/>
+
+                  {/* Metrics */}
                   <div style={{ display: "flex", marginBottom: 14 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 10, color: "#52525b", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 3 }}>Bruttó összeg</div>
@@ -197,15 +224,12 @@ export default function Dashboard() {
                       <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: "#a1a1aa" }}>{p.item_count} db</div>
                     </div>
                   </div>
+
+                  {/* Footer */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <div style={{ fontSize: 11, color: "#52525b" }}>{fmtD(p.created_at)}</div>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        onClick={() => handleDelete(p.project_id)}
-                        disabled={deletingId === p.project_id}
-                        style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid #27272a", color: "#52525b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                        title="Törlés"
-                      >
+                      <button onClick={() => handleDelete(p.project_id)} disabled={deletingId === p.project_id} title="Törlés" style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid #27272a", color: "#52525b", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10M4.5 3.5V2h5v1.5M5 6v4M9 6v4M3 3.5l.8 8h6.4l.8-8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </button>
                       <button onClick={() => router.push(`/estimator/${p.project_id}`)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 8, background: "#27272a", color: "#d4d4d8", fontSize: 12, fontWeight: 500, border: "1px solid #3f3f46", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
